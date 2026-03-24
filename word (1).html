@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WordUp — Group Games</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:#0a0a14;font-family:'Fredoka',sans-serif;color:#fff;min-height:100vh;display:flex;flex-direction:column;align-items:center;overflow-x:hidden}
+    body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(58,134,255,0.07) 0%,transparent 60%);pointer-events:none}
+    @keyframes flip{0%{transform:scaleY(1)}49%{transform:scaleY(0)}50%{transform:scaleY(0)}100%{transform:scaleY(1)}}
+    @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+    @keyframes popTile{0%,100%{transform:scale(1)}40%{transform:scale(1.14)}}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes bounce{0%,100%{transform:translateY(0)}40%{transform:translateY(-10px)}}
+    @keyframes slideDown{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes confetti{0%{transform:translateY(0) rotate(0deg);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
+    header{width:100%;max-width:500px;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.07);position:relative;z-index:1}
+    .tile{width:62px;height:62px;border:2.5px solid rgba(255,255,255,0.13);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;text-transform:uppercase;transition:border-color 0.08s;position:relative;user-select:none}
+    .tile.filled{border-color:rgba(255,255,255,0.45);animation:popTile 0.1s ease}
+    .tile.flipping{animation:flip 0.5s ease forwards}
+    .tile.correct{background:#06D6A0;border-color:#06D6A0;color:#0a0a14;box-shadow:0 0 18px rgba(6,214,160,0.4)}
+    .tile.present{background:#FFD166;border-color:#FFD166;color:#0a0a14}
+    .tile.absent{background:#1c1c2e;border-color:#1c1c2e;color:#555}
+    .key{height:54px;min-width:38px;padding:0 6px;border-radius:9px;border:none;background:rgba(255,255,255,0.1);color:#fff;font-family:'Fredoka',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:all 0.12s;user-select:none;flex:1;max-width:42px}
+    .key:hover{background:rgba(255,255,255,0.18);transform:translateY(-1px)}
+    .key:active{transform:scale(0.93)}
+    .key.wide{min-width:56px;max-width:60px;font-size:13px}
+    .key.correct{background:#06D6A0;color:#0a0a14;box-shadow:0 0 10px rgba(6,214,160,0.3)}
+    .key.present{background:#FFD166;color:#0a0a14}
+    .key.absent{background:#111120;color:#444}
+    #toast{position:fixed;top:72px;left:50%;transform:translateX(-50%);background:#fff;color:#0a0a14;padding:10px 22px;border-radius:12px;font-size:15px;font-weight:700;opacity:0;transition:opacity 0.25s;pointer-events:none;z-index:200;white-space:nowrap}
+    #toast.show{opacity:1}
+    .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.82);display:flex;align-items:center;justify-content:center;z-index:150;padding:20px}
+    .modal{background:#111122;border:1px solid rgba(255,255,255,0.1);border-radius:24px;padding:32px 28px;max-width:380px;width:100%;text-align:center;animation:fadeIn 0.4s ease-out}
+    .bar-row{display:flex;gap:8px;align-items:center;margin-bottom:5px}
+    .conf-piece{position:fixed;pointer-events:none;z-index:300}
+  </style>
+</head>
+<body>
+
+<header>
+  <a href="index.html" style="color:#666;font-size:13px;text-decoration:none;font-family:'Fredoka'">← Group Games</a>
+  <div style="font-size:22px;font-weight:700">🔤 WordUp</div>
+  <button onclick="showStats()" style="background:none;border:none;color:#888;font-size:13px;cursor:pointer;font-family:'Fredoka'">Stats 📊</button>
+</header>
+
+<div id="toast"></div>
+
+<div id="grid" style="display:flex;flex-direction:column;gap:7px;margin:22px 0;position:relative;z-index:1"></div>
+<div id="keyboard" style="display:flex;flex-direction:column;gap:7px;align-items:center;padding:0 8px;width:100%;max-width:500px;position:relative;z-index:1"></div>
+
+<div id="overlay" class="overlay" style="display:none">
+  <div id="modal-box" class="modal"></div>
+</div>
+
+<script>
+const WORDS=['ABOUT','ABOVE','ACTOR','ADMIT','ADULT','AFTER','AGAIN','AGREE','AHEAD','ALARM','ALBUM','ALERT','ALIEN','ALIKE','ALIVE','ALLOW','ALONE','ALONG','ALTER','ANGEL','ANGER','ANGLE','ANVIL','APART','APPLY','ARENA','ARGUE','ARISE','ARMOR','ARROW','ASIDE','ASSET','AUDIO','AVOID','AWAKE','AWARD','AWARE','AZURE','BEACH','BEARD','BEAST','BEGIN','BEING','BELOW','BENCH','BERRY','BIRTH','BLADE','BLAME','BLANK','BLAST','BLAZE','BLEED','BLEND','BLIND','BLOCK','BLOOD','BLOOM','BLUES','BOARD','BOOST','BOUND','BRAIN','BRAND','BRAVE','BREAD','BREAK','BREED','BRICK','BRIDE','BRIEF','BRING','BROAD','BROKE','BROWN','BRUSH','BUILD','BUILT','BURST','CABIN','CARRY','CATCH','CAUSE','CHAIN','CHAIR','CHAOS','CHART','CHASE','CHECK','CHESS','CHIEF','CHILD','CHILL','CLAIM','CLASS','CLEAN','CLEAR','CLICK','CLIFF','CLOCK','CLOSE','CLOUD','COACH','COAST','COULD','COUNT','COURT','COVER','CRACK','CRAFT','CRASH','CRAZY','CREAM','CROSS','CROWD','CRUSH','CURVE','DAILY','DANCE','DEATH','DELAY','DEPTH','DIRTY','DOING','DOUBT','DRAFT','DRAIN','DRAMA','DRAWN','DREAM','DRESS','DRINK','DRIVE','EAGLE','EARLY','EARTH','EIGHT','EMPTY','ENJOY','ENTER','EQUAL','ERROR','EVENT','EVERY','EXACT','EXTRA','FAITH','FANCY','FEAST','FENCE','FIELD','FIGHT','FINAL','FIRST','FLAME','FLASH','FLESH','FLOAT','FLOOD','FLOOR','FOCUS','FORCE','FOUND','FRAME','FRESH','FRONT','FRUIT','FUNNY','GHOST','GIANT','GIVEN','GLASS','GLOBE','GOING','GRACE','GRADE','GRAIN','GRAND','GRANT','GRASS','GRAVE','GREAT','GREED','GREEN','GRIEF','GRILL','GROUP','GROWN','GUARD','GUEST','GUIDE','GUILT','HAPPY','HARSH','HEART','HEAVY','HERBS','HONOR','HORSE','HOTEL','HOUSE','HUMAN','HURRY','INNER','ISSUE','JAPAN','JUICE','KARMA','KNIFE','KNOCK','KNOWN','LABEL','LARGE','LAUGH','LAYER','LEARN','LEAST','LEAVE','LEGAL','LEMON','LEVEL','LIGHT','LIMIT','LOCAL','LOGIC','LOOSE','LUCKY','LUNCH','MAGIC','MAJOR','MAKER','MAPLE','MARCH','MATCH','MEDAL','METAL','MIGHT','MODEL','MONEY','MONTH','MUSIC','NAVAL','NERVE','NIGHT','NOBLE','NOISE','NORTH','NOVEL','NURSE','OCEAN','OFFER','OFTEN','ORDER','OTHER','OUTER','PAINT','PANEL','PANIC','PAPER','PARTY','PAUSE','PEACE','PEARL','PHASE','PHONE','PHOTO','PIANO','PIECE','PILOT','PIXEL','PIZZA','PLACE','PLAIN','PLANE','PLANT','PLATE','POINT','POWER','PRESS','PRICE','PRIDE','PRIME','PRIOR','PRIZE','PROBE','PROOF','PROUD','PROVE','PULSE','PUNCH','PUPPY','QUEEN','QUERY','QUEST','QUICK','QUIET','QUOTE','RADAR','RADIO','RAISE','RALLY','RANGE','RAPID','REACH','READY','REBEL','RELAY','RIDER','RIDGE','RIFLE','RIGHT','RISKY','RIVAL','RIVER','ROBOT','ROUGE','ROUGH','ROUND','ROUTE','ROYAL','RULER','SAINT','SCALE','SCENE','SCORE','SCOUT','SENSE','SEVEN','SHADE','SHAPE','SHARE','SHARK','SHARP','SHIFT','SHINY','SHORE','SHORT','SHOUT','SIGHT','SILLY','SIXTH','SKILL','SLEEP','SLICE','SLIDE','SLOPE','SMART','SMOKE','SNAKE','SOLAR','SOLID','SOLVE','SOUND','SOUTH','SPACE','SPARE','SPARK','SPEAK','SPEND','SPICE','SPIKE','SPLIT','SPORT','SQUAD','STAGE','STAKE','STAND','STARE','START','STATE','STEEL','STICK','STONE','STORM','STORY','STRIP','STUDY','STYLE','SUGAR','SUNNY','SURGE','SWEAR','SWIFT','SWING','SWORD','TABLE','TASTE','THEME','THING','THINK','THOSE','THREE','THROW','TIGHT','TOTAL','TOUCH','TOUGH','TOWER','TRACE','TRACK','TRADE','TRAIL','TRAIN','TREAT','TREND','TRIAL','TRICK','TRUST','TRUTH','TIGER','ULTRA','UNION','UNTIL','UPPER','UPSET','URBAN','VALID','VALUE','VAULT','VIRAL','VIRUS','VITAL','VOICE','WAIST','WASTE','WATCH','WATER','WEIRD','WHEAT','WHEEL','WHICH','WHITE','WHOLE','WIDER','WOMAN','WORLD','WORSE','WORTH','WOULD','YOUTH','ZEBRA','ZESTY'];
+const VALID=new Set(WORDS);
+const G='#06D6A0',Y='#FFD166',R='#EF476F',B='#3A86FF';
+let answer,guesses,current,gameOver,letterStates,confettiIds=[];
+let stats=JSON.parse(localStorage.getItem('gg_word_stats')||'{"played":0,"won":0,"streak":0,"maxStreak":0,"dist":[0,0,0,0,0,0]}');
+
+function init(){
+  const day=Math.floor(Date.now()/86400000);
+  answer=WORDS[day%WORDS.length];
+  guesses=[];current='';gameOver=false;letterStates={};
+  renderGrid();renderKeyboard();
+}
+
+function toast(text,dur=1600){
+  const el=document.getElementById('toast');
+  el.textContent=text;el.classList.add('show');
+  clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),dur);
+}
+
+function renderGrid(){
+  const g=document.getElementById('grid');g.innerHTML='';
+  for(let r=0;r<6;r++){
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;gap:7px';row.id=`row-${r}`;
+    for(let c=0;c<5;c++){
+      const t=document.createElement('div');
+      t.className='tile';t.id=`t-${r}-${c}`;
+      if(r<guesses.length){const g2=guesses[r];t.textContent=g2[c].letter;t.className=`tile ${g2[c].state}`;}
+      else if(r===guesses.length&&c<current.length){t.textContent=current[c];t.className='tile filled';}
+      row.appendChild(t);
+    }
+    g.appendChild(row);
+  }
+}
+
+function renderKeyboard(){
+  const kb=document.getElementById('keyboard');kb.innerHTML='';
+  [['Q','W','E','R','T','Y','U','I','O','P'],['A','S','D','F','G','H','J','K','L'],['↵','Z','X','C','V','B','N','M','⌫']].forEach(row=>{
+    const rowEl=document.createElement('div');rowEl.style.cssText='display:flex;gap:5px;width:100%;justify-content:center';
+    row.forEach(k=>{
+      const btn=document.createElement('button');
+      btn.className=`key${k==='⌫'||k==='↵'?' wide':''}`;
+      btn.textContent=k;
+      const st=letterStates[k];if(st)btn.classList.add(st);
+      btn.addEventListener('pointerdown',e=>{e.preventDefault();handleKey(k)});
+      rowEl.appendChild(btn);
+    });
+    kb.appendChild(rowEl);
+  });
+}
+
+function handleKey(k){
+  if(gameOver)return;
+  if(k==='⌫'||k==='Backspace'){current=current.slice(0,-1);renderGrid();}
+  else if(k==='↵'||k==='Enter'){submit();}
+  else if(/^[A-Z]$/.test(k)&&current.length<5){current+=k;renderGrid();}
+}
+
+function submit(){
+  if(current.length<5){toast('Need 5 letters!');shake(guesses.length);return;}
+  if(!VALID.has(current)){toast('Not in word list');shake(guesses.length);return;}
+  const result=evaluate(current);
+  guesses.push(result);
+  result.forEach(({letter,state})=>{
+    const cur=letterStates[letter];
+    if(state==='correct')letterStates[letter]='correct';
+    else if(state==='present'&&cur!=='correct')letterStates[letter]='present';
+    else if(!cur)letterStates[letter]='absent';
+  });
+  const won=result.every(r=>r.state==='correct');
+  current='';
+  flipRow(guesses.length-1,result,()=>{
+    renderKeyboard();
+    if(won){
+      gameOver=true;
+      const msgs=['Genius! 🔥','Magnificent!','Impressive!','Splendid!','Great!','Phew! 😅'];
+      setTimeout(()=>toast(msgs[guesses.length-1]||'Nice!',2200),100);
+      stats.played++;stats.won++;stats.streak++;stats.maxStreak=Math.max(stats.maxStreak,stats.streak);
+      stats.dist[guesses.length-1]++;
+      localStorage.setItem('gg_word_stats',JSON.stringify(stats));
+      launchConfetti();
+      setTimeout(()=>showResults(true),2000);
+    } else if(guesses.length===6){
+      gameOver=true;
+      toast(answer,3000);
+      stats.played++;stats.streak=0;
+      localStorage.setItem('gg_word_stats',JSON.stringify(stats));
+      setTimeout(()=>showResults(false),2800);
+    }
+  });
+}
+
+function evaluate(guess){
+  const result=Array(5).fill(null).map((_,i)=>({letter:guess[i],state:'absent'}));
+  const ans=[...answer];const used=Array(5).fill(false);
+  for(let i=0;i<5;i++)if(guess[i]===answer[i]){result[i].state='correct';used[i]=true;}
+  for(let i=0;i<5;i++){
+    if(result[i].state==='correct')continue;
+    for(let j=0;j<5;j++){if(!used[j]&&guess[i]===ans[j]){result[i].state='present';used[j]=true;break;}}
+  }
+  return result;
+}
+
+function flipRow(row,result,cb){
+  for(let c=0;c<5;c++){
+    const tile=document.getElementById(`t-${row}-${c}`);
+    setTimeout(()=>{
+      tile.style.transition='transform 0.15s ease';
+      tile.style.transform='scaleY(0)';
+      setTimeout(()=>{
+        tile.textContent=result[c].letter;
+        tile.className=`tile ${result[c].state}`;
+        tile.style.transform='scaleY(1)';
+      },150);
+    },c*280);
+  }
+  setTimeout(cb,5*280+200);
+}
+
+function shake(row){
+  const rowEl=document.getElementById(`row-${row}`);
+  rowEl.style.animation='shake 0.45s ease';
+  setTimeout(()=>rowEl.style.animation='',450);
+}
+
+function launchConfetti(){
+  const colors=[G,Y,R,B,'#FF6BCB','#fff'];
+  for(let i=0;i<50;i++){
+    const el=document.createElement('div');
+    el.className='conf-piece';
+    el.style.cssText=`left:${Math.random()*100}%;top:-10px;width:${6+Math.random()*8}px;height:${6+Math.random()*8}px;
+      background:${colors[i%colors.length]};border-radius:${Math.random()>0.5?'50%':'2px'};
+      animation:confetti ${2+Math.random()*2}s ease-in ${Math.random()*1}s forwards`;
+    document.body.appendChild(el);
+    confettiIds.push(el);
+  }
+  setTimeout(()=>confettiIds.forEach(e=>e.remove())&&(confettiIds=[]),5000);
+}
+
+function showStats(){showResults(gameOver);}
+
+function showResults(won){
+  const ov=document.getElementById('overlay');
+  const maxDist=Math.max(...stats.dist,1);
+  ov.style.display='flex';
+  document.getElementById('modal-box').innerHTML=`
+    <div style="font-size:52px;margin-bottom:10px;animation:bounce 0.6s ease">${won?'🏆':'📊'}</div>
+    <div style="font-size:26px;font-weight:700;color:#fff;margin-bottom:4px">${won?'Nailed it!':gameOver?'Next time!':'Statistics'}</div>
+    ${gameOver?`<div style="font-size:15px;color:#888;margin-bottom:18px">The word was <span style="color:${G};font-weight:700">${answer}</span></div>`:'<div style="height:18px"></div>'}
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px">
+      ${[['Played',stats.played],['Win %',stats.played?Math.round(stats.won/stats.played*100):0],['Streak',stats.streak],['Best',stats.maxStreak]]
+        .map(([l,v])=>`<div style="text-align:center"><div style="font-size:28px;font-weight:700;color:#fff">${v}</div><div style="font-size:11px;color:#666;margin-top:2px">${l}</div></div>`).join('')}
+    </div>
+    <div style="margin-bottom:22px;text-align:left">
+      <div style="font-size:12px;color:#666;margin-bottom:10px;text-align:center;letter-spacing:1px">GUESS DISTRIBUTION</div>
+      ${stats.dist.map((n,i)=>`
+        <div class="bar-row">
+          <span style="font-size:13px;color:#777;min-width:14px">${i+1}</span>
+          <div style="flex:1;background:rgba(255,255,255,0.05);border-radius:5px;overflow:hidden">
+            <div style="width:${Math.max(n/maxDist*100,n>0?10:0)}%;min-width:${n>0?'10%':'0'};background:${i===guesses.length-1&&won?G:'rgba(255,255,255,0.18)'};
+              height:24px;border-radius:5px;transition:width 0.6s;display:flex;align-items:center;
+              justify-content:flex-end;padding-right:6px;font-size:13px;color:${i===guesses.length-1&&won?'#0a0a14':'#fff'};font-weight:700">${n||''}</div>
+          </div>
+        </div>`).join('')}
+    </div>
+    <div style="display:flex;gap:10px">
+      <button onclick="document.getElementById('overlay').style.display='none';init()"
+        style="flex:1;padding:13px;border-radius:13px;border:none;font-family:'Fredoka',sans-serif;font-size:16px;font-weight:700;
+        background:linear-gradient(135deg,${G},${B});color:#fff;cursor:pointer">New Game</button>
+      <a href="index.html" style="flex:1;padding:13px;border-radius:13px;background:rgba(255,255,255,0.08);
+        color:#ccc;font-size:16px;font-weight:700;font-family:'Fredoka';text-decoration:none;
+        display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,0.1)">← Home</a>
+    </div>`;
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.ctrlKey||e.metaKey||e.altKey)return;
+  if(e.key==='Backspace')handleKey('⌫');
+  else if(e.key==='Enter')handleKey('↵');
+  else if(/^[a-zA-Z]$/.test(e.key))handleKey(e.key.toUpperCase());
+});
+
+init();
+</script>
+</body>
+</html>
